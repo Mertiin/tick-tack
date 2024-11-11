@@ -1,0 +1,22 @@
+# Use the official Rust image
+FROM rust:latest
+
+# Set the working directory
+WORKDIR /usr/src/app
+
+# Copy the Cargo.toml and Cargo.lock files
+COPY Cargo.toml Cargo.lock ./
+
+# Copy the source code
+COPY . .
+
+# Build the dependencies
+RUN cargo build --release
+
+# Build the application
+RUN cargo install --path .
+
+EXPOSE 8080
+
+# Set the startup command
+CMD ["websocket"]
