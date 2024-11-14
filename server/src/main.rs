@@ -1,20 +1,14 @@
-mod users;
-
-use std::sync::Arc;
+mod routers;
 
 use axum::{ response::IntoResponse, routing::get, Router, Extension };
 use fastwebsockets::upgrade;
 use fastwebsockets::OpCode;
 use fastwebsockets::WebSocketError;
 use log::{ error, info };
-use serde::{ Deserialize, Serialize };
 use sqlx::postgres::PgPoolOptions;
 use sqlx::Pool;
 use sqlx::Postgres;
-use uuid::Uuid;
-use users::router;
 use dotenv::dotenv;
-use tower::ServiceBuilder;
 
 #[macro_use]
 extern crate dotenv_codegen;
@@ -45,7 +39,7 @@ async fn main() {
     let shared_state = AppState { db: pool };
     let app = Router::new()
         .route("/ws", get(ws_handler))
-        .merge(router())
+        .nest("/api", routers::router())
         .layer(Extension(shared_state));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
