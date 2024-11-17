@@ -2,11 +2,11 @@ use axum::Router;
 
 pub mod matches;
 pub mod users;
-pub mod login;
+pub mod auth;
 
 pub fn router() -> Router {
     Router::new()
         .nest("/users", users::router())
         .nest("/matches", matches::router())
-        .nest("/login", login::router())
+        .nest("/auth", auth::router())
 }
