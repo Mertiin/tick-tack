@@ -1,4 +1,8 @@
+mod models;
 mod routers;
+mod state;
+mod auth;
+mod db;
 
 use axum::{ response::IntoResponse, routing::get, Router, Extension };
 use fastwebsockets::upgrade;
@@ -6,17 +10,11 @@ use fastwebsockets::OpCode;
 use fastwebsockets::WebSocketError;
 use log::{ error, info };
 use sqlx::postgres::PgPoolOptions;
-use sqlx::Pool;
-use sqlx::Postgres;
 use dotenv::dotenv;
+use state::AppState;
 
 #[macro_use]
 extern crate dotenv_codegen;
-
-#[derive(Clone)]
-pub struct AppState {
-    db: Pool<Postgres>,
-}
 
 #[tokio::main]
 async fn main() {

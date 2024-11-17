@@ -1,8 +1,9 @@
 use axum::http::StatusCode;
-use axum::{ Extension, Json };
+use axum::{ middleware, Extension, Json };
 use axum::{ response::IntoResponse, routing::get, Router };
+use log::info;
 use sqlx::{ query_as, FromRow };
-
+use crate::auth::authorization_middleware::{ auth, AuthExtension };
 use crate::AppState;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, FromRow)]
@@ -11,9 +12,12 @@ struct Match {
 }
 
 #[axum::debug_handler]
-async fn get_matches(
+pub async fn get_matches(
+    auth: Extension<AuthExtension>,
     ctx: Extension<AppState>
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    info!("User {} is fetching matches", auth.user.email);
+
     let users = query_as::<_, Match>(r#"SELECT * FROM matches"#)
         .fetch_all(&ctx.db).await
         .map_err(|e| {
@@ -27,7 +31,6 @@ async fn get_matches(
 
     let json_response =
         serde_json::json!({
-        "status": "ok",
         "count": users.len(),
         "matches": users
     });
@@ -36,5 +39,5 @@ async fn get_matches(
 }
 
 pub fn router() -> Router {
-    Router::new().route("/", get(get_matches))
+    Router::new().route("/", get(get_matches)).route_layer(middleware::from_fn(auth))
 }
