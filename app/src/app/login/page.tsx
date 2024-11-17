@@ -1,20 +1,47 @@
 "use client";
 
-import { login } from "@/api/auth/login";
+import { login } from "@/actions/auth/login";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Calendar1Icon } from "lucide-react";
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { useRouter } from "next/navigation";
+
+const formSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6).max(50),
+});
 
 export default function Home() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const router = useRouter();
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-  const onLogin = async () => {
-    const result = await login(email, password);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const result = await login(values.email, values.password);
 
-    console.log(result);
-  };
+    if ("error" in result) {
+      alert(result.error);
+      return;
+    }
+
+    sessionStorage.setItem("accessToken", result.accessToken);
+    router.push("/");
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(700px,_auto)] h-screen">
@@ -40,22 +67,40 @@ export default function Home() {
             Enter your email and password to access your account.
           </span>
         </div>
-        <div className="flex flex-col gap-2 w-[375px]">
-          <Input
-            placeholder="Email"
-            onChange={(e) => {
-              setEmail(e.target.value);
-            }}
-          />
-          <Input
-            type="password"
-            placeholder="Password"
-            onChange={(e) => {
-              setPassword(e.target.value);
-            }}
-          />
-          <Button onClick={onLogin}>Login</Button>
-        </div>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 w-[350px]"
+          >
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input placeholder="example@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input placeholder="Password" type="password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" className="w-full">
+              Login
+            </Button>
+          </form>
+        </Form>
       </div>
     </div>
   );
