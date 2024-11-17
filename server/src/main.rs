@@ -12,6 +12,7 @@ use log::{ error, info };
 use sqlx::postgres::PgPoolOptions;
 use dotenv::dotenv;
 use state::AppState;
+use tower_http::cors::{ Any, CorsLayer };
 
 #[macro_use]
 extern crate dotenv_codegen;
@@ -38,9 +39,10 @@ async fn main() {
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .nest("/api", routers::router())
+        .layer(CorsLayer::permissive())
         .layer(Extension(shared_state));
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await.unwrap();
     axum::serve(listener, app.into_make_service()).await.unwrap();
 }
 
