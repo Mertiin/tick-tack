@@ -2,14 +2,14 @@ use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{ middleware, Extension, Json };
 use axum::{ response::IntoResponse, Router };
+use log::debug;
 use pwhash::bcrypt;
-use sqlx::query_scalar;
 
 use crate::auth::access_token::encode_jwt;
 use crate::auth::authorization_middleware::auth;
+use crate::db::auth::create_refresh_token;
 use crate::db::user::get_user_by_email;
 use crate::AppState;
-use rand::Rng;
 use sqlx::query;
 
 #[derive(serde::Deserialize)]
@@ -24,47 +24,43 @@ async fn login(
     Json(req): Json<LoginUser>
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let user = get_user_by_email(&req.email, &ctx).await.map_err(|_e| {
+        debug!("User logged in: {}", _e);
         bcrypt::verify("req.password", "&user.password");
         let error_response =
             serde_json::json!({
             "status": "error",
             "message": "Invalid email or password",
         });
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        (StatusCode::UNAUTHORIZED, Json(error_response))
     })?;
 
-    if bcrypt::verify(req.password, &user.password) {
-        let token: String = rand
-            ::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(64)
-            .map(char::from)
-            .collect();
+    debug!("User logged in: {}", user.email);
 
-        let expires_at = (chrono::Utc::now() + chrono::Duration::days(30)).naive_utc();
-        let refresh_token = query_scalar!(
-            r#"insert into refresh_tokens (token, user_id, expires_at) values ($1, $2, $3) returning token"#,
-            token,
-            user.user_id,
-            expires_at
-        )
-            .fetch_one(&ctx.db).await
-            .map_err(|_e| {
+    if bcrypt::verify(req.password, &user.password) {
+        let refresh_token = match create_refresh_token(user.id, &ctx).await {
+            Ok(token) => token,
+            Err(e) => {
                 let error_response =
                     serde_json::json!({
-            "status": "error",
-            "message": "Failed to create user",
-        });
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
-            })?;
+                "status": "error",
+                "message": format!("Failed to create refresh token: {}", e),
+            });
+                debug!("User logged in: {}", error_response);
 
-        encode_jwt(user.user_id.to_string(), user.email)
-            .map(|token| {
+                return Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)));
+            }
+        };
+
+        debug!("User logged in: {}", refresh_token);
+
+        encode_jwt(user.id.to_string(), user.email)
+            .map(|access_token| {
+                debug!("User logged in: {}", access_token);
                 let response =
                     serde_json::json!({
             "status": "success",
-            "token": token,
-            "refresh_token": refresh_token,
+            "accessToken": access_token,
+            "refreshToken": refresh_token,
         });
                 (StatusCode::OK, Json(response))
             })
@@ -86,9 +82,10 @@ async fn login(
     }
 }
 
+#[allow(non_snake_case)]
 #[derive(serde::Deserialize)]
 struct GetAccessTokenRequest {
-    refresh_token: String,
+    refreshToken: String,
 }
 
 #[axum::debug_handler]
@@ -96,39 +93,43 @@ async fn get_access_token(
     ctx: Extension<AppState>,
     Json(req): Json<GetAccessTokenRequest>
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user = query!(
-        r#"SELECT users.user_id, email FROM refresh_tokens
-        JOIN users ON refresh_tokens.user_id = users.user_id
+    let user = match
+        query!(
+            r#"SELECT users.id, email FROM refresh_tokens
+        JOIN users ON refresh_tokens.user_id = users.id
          WHERE token = $1 AND expires_at > NOW()"#,
-        &req.refresh_token
-    )
-        .fetch_one(&ctx.db).await
-        .map_err(|_e| {
+            &req.refreshToken
+        ).fetch_one(&ctx.db).await
+    {
+        Ok(user) => user,
+        Err(_e) => {
             let error_response =
                 serde_json::json!({
-            "status": "error",
-            "message": "Failed to token",
-        });
-            (StatusCode::UNAUTHORIZED, Json(error_response))
-        })?;
+                    "status": "error",
+                    "message": "Failed to token",
+                });
+            return Ok((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
 
-    encode_jwt(user.user_id.to_string(), user.email)
-        .map(|token| {
+    match encode_jwt(user.id.to_string(), user.email) {
+        Ok(access_token) => {
             let response =
                 serde_json::json!({
                     "status": "success",
-                    "token": token,
+                    "accessToken": access_token,
                 });
-            (StatusCode::OK, Json(response))
-        })
-        .map_err(|e| {
+            Ok((StatusCode::OK, Json(response)))
+        }
+        Err(e) => {
             let error_response =
                 serde_json::json!({
                     "status": "error",
                     "message": format!("JWT error: {}", e),
                 });
-            (StatusCode::UNAUTHORIZED, Json(error_response))
-        })
+            Ok((StatusCode::UNAUTHORIZED, Json(error_response)))
+        }
+    }
 }
 
 #[derive(serde::Deserialize)]

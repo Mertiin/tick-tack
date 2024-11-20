@@ -12,7 +12,7 @@ use log::{ error, info };
 use sqlx::postgres::PgPoolOptions;
 use dotenv::dotenv;
 use state::AppState;
-use tower_http::cors::{ Any, CorsLayer };
+use tower_http::cors::CorsLayer;
 
 #[macro_use]
 extern crate dotenv_codegen;
