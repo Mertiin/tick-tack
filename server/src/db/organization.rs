@@ -1,3 +1,4 @@
+use log::debug;
 use sqlx::{ query_as, query_scalar };
 use uuid::Uuid;
 
@@ -36,11 +37,19 @@ pub async fn create_organization(
     org: CreateOrganization,
     ctx: &AppState
 ) -> Result<Uuid, sqlx::Error> {
-    let organization_id: Uuid = query_scalar!(
-        r#"INSERT INTO organizations (name, owner_user_id) VALUES ($1, $2) RETURNING id"#,
-        org.name,
-        org.user_id
-    ).fetch_one(&ctx.db).await?;
+    let organization_id: Uuid = match
+        query_scalar!(
+            r#"INSERT INTO organizations (name, owner_user_id) VALUES ($1, $2) RETURNING id"#,
+            org.name,
+            org.user_id
+        ).fetch_one(&ctx.db).await
+    {
+        Ok(id) => id,
+        Err(e) => {
+            debug!("Failed to create organization: {:?}", e);
+            return Err(e);
+        }
+    };
 
     attach_user_to_organization(&org.user_id, &organization_id, ctx).await?;
 
@@ -54,13 +63,14 @@ pub async fn attach_user_to_organization(
 ) -> Result<(), sqlx::Error> {
     match
         query_scalar!(
-            r#"INSERT INTO user_organizations (user_id, organization_id) VALUES ($1, $2)"#,
+            r#"INSERT INTO user_organizations (user_id, organization_id) VALUES ($1, $2) RETURNING (user_id, organization_id)"#,
             user_id,
             organization_id
         ).fetch_one(&ctx.db).await
     {
         Ok(_) => Ok(()),
         Err(e) => {
+            debug!("Failed to create organization xxxx: {:?}", e);
             return Err(e);
         }
     }

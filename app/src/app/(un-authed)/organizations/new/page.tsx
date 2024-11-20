@@ -10,7 +10,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-// import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Cookies from "js-cookie";
 
@@ -19,7 +19,7 @@ const NewOrganizationSchema = z.object({
 });
 
 export default function NewOrganizationPage() {
-  // const router = useRouter();
+  const router = useRouter();
   const form = useForm<z.infer<typeof NewOrganizationSchema>>({
     resolver: zodResolver(NewOrganizationSchema),
     defaultValues: {
@@ -39,7 +39,19 @@ export default function NewOrganizationPage() {
       body: JSON.stringify(values),
     }).then((res) => {
       if (res.ok) {
-        // router.push("/");
+        router.push("/");
+      } else {
+        if (res.status === 409) {
+          form.setError("name", {
+            type: "manual",
+            message: "Organization already exists",
+          });
+        } else {
+          form.setError("name", {
+            type: "manual",
+            message: "Failed to create organization",
+          });
+        }
       }
     });
   };

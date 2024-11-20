@@ -2,6 +2,7 @@ use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{ middleware, Extension, Json };
 use axum::{ response::IntoResponse, Router };
+use log::debug;
 
 use crate::auth::authorization_middleware::auth;
 use crate::{
@@ -42,12 +43,37 @@ async fn post_organization(
             Ok(Json(json_response))
         }
         Err(e) => {
-            let error_response =
-                serde_json::json!({
-                "status": "error",
-                "message": "Failed to create organization",
-            });
-            Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)))
+            let error_response = if let Some(db_error) = e.as_database_error() {
+                if db_error.code().as_deref() == Some("23505") {
+                    (
+                        StatusCode::CONFLICT,
+                        Json(
+                            serde_json::json!({
+                        "message": "Organization already exists",
+                    })
+                        ),
+                    )
+                } else {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(
+                            serde_json::json!({
+                    "message": "Failed to create organization",
+                })
+                        ),
+                    )
+                }
+            } else {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(
+                        serde_json::json!({
+                    "message": "Failed to create organization",
+                })
+                    ),
+                )
+            };
+            return Err(error_response);
         }
     }
 }
