@@ -57,37 +57,39 @@ export default function NewOrganizationPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen justify-center items-center">
-      <div className="flex flex-col items-center gap-4 w-[350px]">
-        <div className="text-center">
-          <h1 className="text-2xl">Almost done</h1>
-          <p className="text-sm text-primary/60">
-            You just need to create a organization
-          </p>
+    <main className="min-h-screen">
+      <div className="flex flex-col h-screen justify-center items-center">
+        <div className="flex flex-col items-center gap-4 w-[350px]">
+          <div className="text-center">
+            <h1 className="text-2xl">Almost done</h1>
+            <p className="text-sm text-primary/60">
+              You just need to create a organization
+            </p>
+          </div>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-2 w-full"
+            >
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input placeholder="Org AB" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full">
+                Create organization
+              </Button>
+            </form>
+          </Form>
         </div>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-2 w-full"
-          >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input placeholder="Org AB" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full">
-              Create organization
-            </Button>
-          </form>
-        </Form>
       </div>
-    </div>
+    </main>
   );
 }

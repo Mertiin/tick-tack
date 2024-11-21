@@ -1,6 +1,8 @@
 import { getMe } from "@/actions/me";
 import { MeProvider } from "@/contexts/me-context";
 import { redirect } from "next/navigation";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 export default async function RootLayout({
   children,
@@ -13,5 +15,13 @@ export default async function RootLayout({
     return redirect("/organizations/new");
   }
 
-  return <MeProvider initialMe={me}>{children}</MeProvider>;
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <main className="min-h-screen">
+        <SidebarTrigger />
+        <MeProvider initialMe={me}>{children}</MeProvider>
+      </main>
+    </SidebarProvider>
+  );
 }

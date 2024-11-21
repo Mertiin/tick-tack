@@ -1,5 +1,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { parseAccessToken } from "./lib/parse-jwt";
+
+async function getAccessToken(refreshToken: string) {
+  return await fetch(
+    process.env.NEXT_PUBLIC_API_URL + "/api/auth/access_token",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refreshToken: refreshToken }),
+    }
+  ).then((res) => {
+    if (!res.ok) {
+      throw new Error("Failed to get access token");
+    }
+    return res.json();
+  });
+}
 
 // This function can be marked `async` if using `await` inside
 export async function middleware(request: NextRequest) {
@@ -10,38 +29,61 @@ export async function middleware(request: NextRequest) {
     if (!refreshTokenCookie) {
       return NextResponse.redirect(new URL("/login", request.url));
     } else {
-      const cookie = request.cookies.get("access_token");
-      if (!cookie) {
-        try {
-          const accessToken = await fetch(
-            "http://localhost:3001/api/auth/access_token",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ refreshToken: refreshTokenCookie.value }),
-            }
-          ).then((res) => {
-            if (!res.ok) {
+      try {
+        const accessTokenCookie = request.cookies.get("access_token");
+        if (!accessTokenCookie) {
+          const accessTokenResponse = await getAccessToken(
+            refreshTokenCookie.value
+          );
+
+          try {
+            if (accessTokenResponse.accessToken) {
+              response.cookies.set(
+                "access_token",
+                accessTokenResponse.accessToken,
+                {
+                  secure: true,
+                  sameSite: "strict",
+                  path: "/",
+                }
+              );
+            } else {
               throw new Error("Failed to get access token");
             }
-            return res.json();
-          });
-
-          if (accessToken.accessToken) {
-            response.cookies.set("access_token", accessToken.accessToken, {
-              secure: true,
-              sameSite: "strict",
-              path: "/",
-            });
-          } else {
-            throw new Error("Failed to get access token");
+          } catch {
+            response.cookies.delete("refresh_token");
+            return NextResponse.redirect(new URL("/login", request.url));
           }
-        } catch {
-          response.cookies.delete("refresh_token");
-          return NextResponse.redirect(new URL("/login", request.url));
+        } else {
+          const accessToken = parseAccessToken(accessTokenCookie.value);
+          if (accessToken.exp < new Date()) {
+            const accessTokenResponse = await getAccessToken(
+              refreshTokenCookie.value
+            );
+
+            try {
+              if (accessTokenResponse.accessToken) {
+                response.cookies.set(
+                  "access_token",
+                  accessTokenResponse.accessToken,
+                  {
+                    secure: true,
+                    sameSite: "strict",
+                    path: "/",
+                  }
+                );
+              } else {
+                throw new Error("Failed to get access token");
+              }
+            } catch {
+              response.cookies.delete("refresh_token");
+              return NextResponse.redirect(new URL("/login", request.url));
+            }
+          }
         }
+      } catch {
+        response.cookies.delete("refresh_token");
+        return NextResponse.redirect(new URL("/login", request.url));
       }
     }
 

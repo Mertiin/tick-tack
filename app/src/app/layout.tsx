@@ -36,7 +36,7 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <main className="min-h-screen">{children}</main>
+            {children}
           </ThemeProvider>
         </body>
       </html>
