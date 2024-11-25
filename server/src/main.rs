@@ -14,8 +14,7 @@ use dotenv::dotenv;
 use state::AppState;
 use tower_http::cors::CorsLayer;
 
-#[macro_use]
-extern crate dotenv_codegen;
+use std::env;
 
 #[tokio::main]
 async fn main() {
@@ -24,7 +23,11 @@ async fn main() {
     // Initialize the logger
     env_logger::init();
 
-    let pool = match PgPoolOptions::new().max_connections(5).connect(dotenv!("DATABASE_URL")).await {
+    let pool = match
+        PgPoolOptions::new()
+            .max_connections(5)
+            .connect(env::var("DATABASE_URL").unwrap().as_str()).await
+    {
         Ok(pool) => {
             info!("Connected to the database");
             pool

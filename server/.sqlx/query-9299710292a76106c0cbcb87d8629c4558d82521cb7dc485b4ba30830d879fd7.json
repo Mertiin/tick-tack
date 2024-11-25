@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO user_organizations (user_id, organization_id) VALUES ($1, $2) RETURNING (user_id, organization_id)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "row",
+        "type_info": "Record"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9299710292a76106c0cbcb87d8629c4558d82521cb7dc485b4ba30830d879fd7"
+}

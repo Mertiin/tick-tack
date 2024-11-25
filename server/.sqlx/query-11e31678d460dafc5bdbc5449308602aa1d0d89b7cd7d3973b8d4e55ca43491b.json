@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "delete from users where id = $1 returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "11e31678d460dafc5bdbc5449308602aa1d0d89b7cd7d3973b8d4e55ca43491b"
+}
